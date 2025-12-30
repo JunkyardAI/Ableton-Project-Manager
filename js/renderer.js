@@ -1,251 +1,388 @@
 const App = {
+    // State
     projects: [],
     virtualFolders: [
-        { id: 'all', name: 'All Projects', icon: '📂' },
-        { id: 'priority', name: 'Priority', icon: '🔥' },
-        { id: 'incomplete', name: 'Incomplete', icon: '🚧' }
+        { id: 'all', name: 'All Projects', icon: '<i class="fa-solid fa-layer-group"></i>' },
+        { id: 'priority', name: 'Priority', icon: '<i class="fa-solid fa-fire text-orange-500"></i>' },
+        { id: 'incomplete', name: 'Incomplete', icon: '<i class="fa-solid fa-wrench"></i>' },
+        { id: 'released', name: 'Released', icon: '<i class="fa-solid fa-check-circle text-green-500"></i>' }
     ],
-    selectedProjectId: null,
     currentFilter: 'all',
+    selectedProjectId: null,
+    searchQuery: '',
 
+    // --- INIT ---
     async init() {
-        // Check if we are in Electron (window.electron exposed by preload.js)
-        if (window.electron) {
-            console.log("Electron detected. Loading DB...");
+        this.checkEnvironment();
+        
+        // Load Data
+        if (this.isElectron) {
             this.projects = await window.electron.loadData();
         } else {
-            console.warn("Browser mode: Using empty state.");
-            this.projects = []; 
+            // Fallback for browser testing
+            this.projects = [
+                { id: '1', name: 'Demo Track 1', rootFolder: 'D:/Music/Demo1', status: 'Mixing', tags: ['Techno', 'Priority'] },
+                { id: '2', name: 'Ambient Sketch', rootFolder: 'D:/Music/Ambient', status: 'Idea', tags: ['Chill'] }
+            ];
         }
-        
+
         this.renderSidebar();
-        this.renderGrid();
+        this.renderList();
         this.setupListeners();
     },
 
+    checkEnvironment() {
+        this.isElectron = !!window.electron;
+        const statusEl = document.getElementById('electronStatus');
+        if (this.isElectron) {
+            statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span> Electron Active`;
+        }
+    },
+
     save() {
-        if (window.electron) {
+        if (this.isElectron) {
             window.electron.saveData(this.projects);
         }
-        this.renderGrid(); // Refresh UI to show status changes immediately
+        this.renderList(); // Reflect changes in list (e.g. priority strip)
     },
+
+    // --- RENDERERS ---
 
     renderSidebar() {
         const list = document.getElementById('virtualFolderList');
-        if (!list) return;
-
-        list.innerHTML = this.virtualFolders.map(folder => `
-            <li class="sidebar-item cursor-pointer px-4 py-2 flex items-center space-x-2 text-gray-400 hover:text-white hover:bg-[#2a2a2a] transition ${this.currentFilter === folder.id ? 'active text-white bg-[#2a2a2a]' : ''}"
-                onclick="App.setFilter('${folder.id}', '${folder.name}')">
-                <span>${folder.icon}</span>
-                <span>${folder.name}</span>
+        list.innerHTML = this.virtualFolders.map(f => `
+            <li class="sidebar-item px-5 py-2.5 cursor-pointer flex items-center gap-3 text-gray-400 transition-colors ${this.currentFilter === f.id ? 'active' : ''}"
+                onclick="App.setFilter('${f.id}', '${f.name}')">
+                <span class="w-5 text-center">${f.icon}</span>
+                <span class="font-medium">${f.name}</span>
             </li>
         `).join('');
+
+        // Unique Tags
+        const allTags = new Set();
+        this.projects.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
         
-        // Dynamic Tag List from actual projects
-        const allTags = new Set(this.projects.flatMap(p => p.tags || []));
-        const tagListEl = document.getElementById('tagList');
-        if (tagListEl) {
-            tagListEl.innerHTML = Array.from(allTags).map(tag => `
-                <li class="cursor-pointer px-4 py-1 text-gray-400 hover:text-[#f59e0b] transition text-xs"># ${tag}</li>
-            `).join('');
-        }
+        const tagList = document.getElementById('tagList');
+        tagList.innerHTML = Array.from(allTags).filter(t => t !== 'Priority').map(t => `
+            <li class="px-2 py-1 text-xs bg-[#252525] text-gray-400 hover:text-white hover:bg-[#333] rounded cursor-pointer border border-[#333]"
+                onclick="App.setSearch('${t}')">#${t}</li>
+        `).join('');
     },
 
-    renderGrid() {
-        const grid = document.getElementById('projectGrid');
-        if (!grid) return;
-
+    renderList() {
+        const container = document.getElementById('projectListContainer');
         const filtered = this.filterProjects();
         
+        document.getElementById('projectCount').innerText = `${filtered.length} projects`;
+
         if (filtered.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center text-gray-600 mt-10">No projects found. Import one to start.</div>`;
+            container.innerHTML = `<div class="text-center mt-20 text-gray-600 italic">No projects found.</div>`;
             return;
         }
 
-        grid.innerHTML = filtered.map(p => `
-            <div class="glass-panel rounded-lg p-4 cursor-pointer card-hover transition border border-[#333] ${this.selectedProjectId === p.id ? 'border-[#f59e0b] bg-[#252525]' : ''}"
-                 onclick="App.selectProject('${p.id}')">
-                <div class="h-24 bg-gradient-to-br from-gray-800 to-black rounded mb-3 flex items-center justify-center">
-                    <span class="text-2xl opacity-50">🎵</span>
+        container.innerHTML = filtered.map(p => {
+            const isPriority = (p.tags || []).includes('Priority');
+            const isActive = this.selectedProjectId === p.id;
+            
+            // Badge Logic
+            const displayTags = (p.tags || []).filter(t => t !== 'Priority').slice(0, 3);
+            
+            return `
+            <div class="project-card ${isPriority ? 'priority' : ''} ${isActive ? 'active' : ''}" 
+                 onclick="App.selectProject('${p.id}')"
+                 ondblclick="App.openProject('${p.id}')">
+                
+                <!-- Icon -->
+                <div class="card-icon">
+                    <i class="fa-brands fa-itunes-note"></i>
                 </div>
-                <h3 class="font-bold text-white truncate">${p.name}</h3>
-                <div class="flex justify-between items-center mt-2">
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-[#333] text-gray-300 border border-[#444]">${p.status || 'Idea'}</span>
+
+                <!-- Info -->
+                <div class="card-info overflow-hidden">
+                    <h3 class="truncate">${p.name}</h3>
+                    <p>${p.rootFolder}</p>
+                </div>
+
+                <!-- Tags / Meta -->
+                <div class="hidden md:flex card-tags">
+                    ${displayTags.map(t => `<span class="tag-badge">#${t}</span>`).join('')}
+                    ${(p.tags?.length > 3) ? `<span class="tag-badge">+${p.tags.length - 3}</span>` : ''}
+                </div>
+
+                <!-- Status -->
+                <div class="status-badge status-${p.status || 'Idea'}">
+                    ${p.status || 'Idea'}
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
     },
 
     renderInspector() {
-        const content = document.getElementById('inspectorContent');
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        const panel = document.getElementById('inspectorPanel');
         const empty = document.getElementById('inspectorEmpty');
-        
-        if (!this.selectedProjectId) {
-            if (content) content.style.display = 'none';
-            if (empty) empty.style.display = 'flex';
+        const content = document.getElementById('inspectorContent');
+
+        if (!p) {
+            panel.classList.remove('inspector-open'); // Close it if nothing selected
             return;
         }
 
-        const p = this.projects.find(x => x.id === this.selectedProjectId);
-        if (!p) return;
+        // Open Panel
+        panel.classList.add('inspector-open');
+        empty.classList.add('hidden');
+        content.classList.remove('hidden');
+        content.classList.add('flex');
 
-        if (empty) empty.style.display = 'none';
-        if (content) content.style.display = 'flex';
+        // Fill Data
+        document.getElementById('inspectorName').innerText = p.name;
+        document.getElementById('inspectorPath').innerText = p.rootFolder;
+        document.getElementById('statusSelect').value = p.status || 'Idea';
 
-        const els = {
-            name: document.getElementById('inspectorName'),
-            path: document.getElementById('inspectorPath'),
-            status: document.getElementById('statusSelect'),
-            tasks: document.getElementById('taskList'),
-            tags: document.getElementById('inspectorTags')
-        };
-
-        if (els.name) els.name.innerText = p.name;
-        if (els.path) els.path.innerText = p.rootFolder;
-        if (els.status) {
-            els.status.value = p.status || 'Idea';
-            els.status.onchange = (e) => {
-                p.status = e.target.value;
-                this.save();
-            };
-        }
-
-        // Tasks
-        if (els.tasks) {
-            els.tasks.innerHTML = (p.tasks || []).map((t, idx) => `
-                <li class="flex items-start space-x-2 group">
-                    <input type="checkbox" ${t.done ? 'checked' : ''} 
-                           class="mt-1 bg-transparent border-gray-600 rounded text-[#f59e0b] focus:ring-0"
-                           onchange="App.toggleTask('${p.id}', ${idx})">
-                    <span class="text-gray-300 text-xs ${t.done ? 'line-through text-gray-600' : ''}">${t.text}</span>
-                </li>
-            `).join('');
+        // Priority Button State
+        const isPriority = (p.tags || []).includes('Priority');
+        const prioBtn = document.getElementById('priorityToggleBtn');
+        if (isPriority) {
+            prioBtn.classList.add('bg-[#f59e0b]', 'text-black', 'border-[#f59e0b]', 'font-bold');
+            prioBtn.classList.remove('bg-[#2a2a2a]', 'text-gray-400');
+            prioBtn.innerHTML = `<i class="fa-solid fa-star"></i> <span>Priority</span>`;
+        } else {
+            prioBtn.classList.remove('bg-[#f59e0b]', 'text-black', 'border-[#f59e0b]', 'font-bold');
+            prioBtn.classList.add('bg-[#2a2a2a]', 'text-gray-400');
+            prioBtn.innerHTML = `<i class="fa-regular fa-star"></i> <span>Normal</span>`;
         }
 
         // Tags
-        if (els.tags) {
-            els.tags.innerHTML = (p.tags || []).map(t => `
-                <span class="text-xs bg-[#f59e0b] bg-opacity-10 text-[#f59e0b] px-2 py-1 rounded border border-[#f59e0b] border-opacity-20">${t}</span>
-            `).join('') + `<button onclick="App.addTag()" class="text-xs bg-[#333] text-gray-400 px-2 py-1 rounded hover:text-white">+</button>`;
-        }
+        const tagsContainer = document.getElementById('inspectorTags');
+        tagsContainer.innerHTML = (p.tags || []).filter(t => t !== 'Priority').map(t => `
+            <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#333] text-gray-300 text-xs border border-[#444] group">
+                #${t} <i class="fa-solid fa-times ml-1 opacity-0 group-hover:opacity-100 cursor-pointer hover:text-red-400" onclick="App.removeTag('${t}')"></i>
+            </span>
+        `).join('');
+
+        // Tasks
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = (p.tasks || []).map((t, i) => `
+            <li class="group flex items-start gap-2 text-xs">
+                <input type="checkbox" ${t.done ? 'checked' : ''} 
+                    class="mt-0.5 bg-[#333] border-gray-600 rounded focus:ring-0 text-amber-500 cursor-pointer"
+                    onchange="App.toggleTask(${i})">
+                <span class="${t.done ? 'line-through text-gray-600' : 'text-gray-300'} flex-1 break-words">${t.text}</span>
+                <i class="fa-solid fa-trash text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 cursor-pointer" onclick="App.deleteTask(${i})"></i>
+            </li>
+        `).join('');
     },
+
+    // --- ACTIONS ---
 
     setFilter(id, name) {
         this.currentFilter = id;
-        const title = document.getElementById('currentViewTitle');
-        if (title) title.innerText = name;
+        document.getElementById('currentViewTitle').innerText = name;
         this.renderSidebar();
-        this.renderGrid();
+        this.renderList();
     },
 
-    filterProjects() {
-        if (this.currentFilter === 'all') return this.projects;
-        if (this.currentFilter === 'priority') return this.projects.filter(p => (p.tags || []).includes('Priority'));
-        if (this.currentFilter === 'incomplete') return this.projects.filter(p => p.status === 'Incomplete');
-        return this.projects;
+    setSearch(term) {
+        document.getElementById('searchInput').value = term;
+        this.searchQuery = term.toLowerCase();
+        this.renderList();
     },
 
     selectProject(id) {
         this.selectedProjectId = id;
-        this.renderGrid(); 
+        this.renderList(); // Update active state
         this.renderInspector();
     },
 
-    toggleTask(pid, taskIdx) {
-        const p = this.projects.find(x => x.id === pid);
-        if (p) {
-            p.tasks[taskIdx].done = !p.tasks[taskIdx].done;
-            this.save();
-            this.renderInspector();
-        }
-    },
-    
-    async addTag() {
-        const p = this.projects.find(x => x.id === this.selectedProjectId);
-        if(!p) return;
-        const tag = prompt("New Tag:");
-        if(tag) {
-            if(!p.tags) p.tags = [];
-            p.tags.push(tag);
-            this.save();
-            this.renderInspector();
-            this.renderSidebar();
-        }
-    },
-
-    async importFolder() {
-        if (!window.electron) return alert("Electron required for file system access.");
+    filterProjects() {
+        let res = this.projects;
         
-        const result = await window.electron.importFolder();
-        if (!result.canceled && result.project) {
-            const newP = {
-                id: crypto.randomUUID(),
-                ...result.project,
-                status: 'Idea',
-                tags: [],
-                tasks: []
-            };
-            this.projects.push(newP);
-            this.save();
+        // Filter Logic
+        if (this.currentFilter === 'priority') res = res.filter(p => (p.tags || []).includes('Priority'));
+        else if (this.currentFilter === 'incomplete') res = res.filter(p => p.status === 'Incomplete');
+        else if (this.currentFilter === 'released') res = res.filter(p => p.status === 'Released');
+
+        // Search Logic
+        if (this.searchQuery) {
+            res = res.filter(p => 
+                p.name.toLowerCase().includes(this.searchQuery) || 
+                (p.tags || []).some(t => t.toLowerCase().includes(this.searchQuery))
+            );
         }
-    },
-
-    async revealInExplorer() {
-        const p = this.projects.find(x => x.id === this.selectedProjectId);
-        if (p && window.electron) window.electron.revealInExplorer(p.rootFolder);
-    },
-
-    async openInAbleton() {
-        const p = this.projects.find(x => x.id === this.selectedProjectId);
-        if (p && window.electron && p.alsPath) window.electron.openProject(p.alsPath);
-    },
-
-    async renameProject() {
-        const p = this.projects.find(x => x.id === this.selectedProjectId);
-        if (!p || !window.electron) return;
-
-        const newName = prompt("Rename Folder:", p.name);
-        if (!newName || newName === p.name) return;
-
-        const result = await window.electron.renameProjectFolder({
-            oldPath: p.rootFolder,
-            newName: newName
-        });
-
-        if (result.success) {
-            p.rootFolder = result.newPath;
-            p.name = newName;
-            this.save();
-            this.renderInspector();
-        } else {
-            alert("Rename failed: " + result.error);
-        }
-    },
-
-    setupListeners() {
-        const bind = (id, fn) => {
-            const el = document.getElementById(id);
-            if (el) el.onclick = fn;
-        };
-
-        bind('importBtn', () => this.importFolder());
-        bind('projectPreview', () => this.openInAbleton());
-        bind('revealBtn', () => this.revealInExplorer());
-        bind('renameBtn', () => this.renameProject());
-        bind('addTaskBtn', () => {
-             const p = this.projects.find(x => x.id === this.selectedProjectId);
-             if(p) {
-                 const t = prompt("Task:");
-                 if(t) {
-                     if(!p.tasks) p.tasks = [];
-                     p.tasks.push({text: t, done: false});
-                     this.save();
-                     this.renderInspector();
-                 }
-             }
-        });
+        return res;
     }
 };
 
+// --- EVENT HANDLERS (Bridged to DOM) ---
+
+// Setup static listeners
+App.setupListeners = function() {
+    // Search
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        this.searchQuery = e.target.value.toLowerCase();
+        this.renderList();
+    });
+
+    // Import
+    document.getElementById('importBtn').onclick = async () => {
+        if (!this.isElectron) return alert("Feature available in Desktop App only.");
+        
+        const res = await window.electron.importFolder();
+        if (!res.canceled && res.project) {
+            // Check duplicate
+            if (this.projects.some(p => p.rootFolder === res.project.rootFolder)) {
+                return alert("Project already exists in library.");
+            }
+
+            this.projects.push({
+                id: crypto.randomUUID(),
+                ...res.project,
+                status: 'Idea',
+                tags: [],
+                tasks: []
+            });
+            this.save();
+        }
+    };
+
+    // Close Inspector
+    document.getElementById('closeInspectorBtn').onclick = () => {
+        this.selectedProjectId = null;
+        this.renderList();
+        document.getElementById('inspectorPanel').classList.remove('inspector-open');
+    };
+
+    // Status Change
+    document.getElementById('statusSelect').onchange = (e) => {
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        if (p) { p.status = e.target.value; this.save(); this.renderList(); }
+    };
+
+    // Priority Toggle
+    document.getElementById('priorityToggleBtn').onclick = () => {
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        if (!p) return;
+        
+        if (!p.tags) p.tags = [];
+        if (p.tags.includes('Priority')) {
+            p.tags = p.tags.filter(t => t !== 'Priority');
+        } else {
+            p.tags.push('Priority');
+        }
+        this.save();
+        this.renderInspector();
+    };
+
+    // Add Tag
+    document.getElementById('addTagForm').onsubmit = (e) => {
+        e.preventDefault();
+        const input = document.getElementById('newTagInput');
+        const val = input.value.trim();
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        
+        if (val && p) {
+            if (!p.tags) p.tags = [];
+            if (!p.tags.includes(val)) {
+                p.tags.push(val);
+                this.save();
+                this.renderInspector();
+                this.renderSidebar(); // Update global tag list
+            }
+            input.value = '';
+        }
+    };
+
+    // Add Task
+    document.getElementById('addTaskBtn').onclick = () => {
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        if (p) {
+            if (!p.tasks) p.tasks = [];
+            p.tasks.push({ text: "New Task", done: false });
+            this.save();
+            this.renderInspector();
+            // Focus logic could go here
+        }
+    };
+
+    // Rename
+    document.getElementById('renameBtn').onclick = async () => {
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        if (!p || !this.isElectron) return;
+
+        const newName = prompt("Rename Project Folder:", p.name);
+        if (newName && newName !== p.name) {
+            const res = await window.electron.renameProjectFolder({
+                oldPath: p.rootFolder,
+                newName: newName
+            });
+
+            if (res.success) {
+                p.rootFolder = res.newPath; // Update Internal Path
+                p.name = newName;           // Update Internal Name
+                this.save();
+                this.renderInspector();
+                this.renderList();
+            } else {
+                alert("Error renaming: " + res.error);
+            }
+        }
+    };
+
+    // Reveal
+    document.getElementById('revealBtn').onclick = () => {
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        if (p && this.isElectron) window.electron.revealInExplorer(p.rootFolder);
+    };
+
+    // Open
+    document.getElementById('openAbletonBtn').onclick = () => {
+        const p = this.projects.find(x => x.id === this.selectedProjectId);
+        if (p) App.openProject(p.id);
+    };
+};
+
+// --- SUB ACTIONS ---
+App.removeTag = function(tag) {
+    const p = this.projects.find(x => x.id === this.selectedProjectId);
+    if (p) {
+        p.tags = p.tags.filter(t => t !== tag);
+        this.save();
+        this.renderInspector();
+        this.renderSidebar();
+    }
+};
+
+App.toggleTask = function(idx) {
+    const p = this.projects.find(x => x.id === this.selectedProjectId);
+    if (p && p.tasks[idx]) {
+        p.tasks[idx].done = !p.tasks[idx].done;
+        this.save();
+        this.renderInspector();
+    }
+};
+
+App.deleteTask = function(idx) {
+    const p = this.projects.find(x => x.id === this.selectedProjectId);
+    if (p) {
+        p.tasks.splice(idx, 1);
+        this.save();
+        this.renderInspector();
+    }
+};
+
+App.openProject = function(id) {
+    const p = this.projects.find(x => x.id === id);
+    if (!p) return;
+
+    if (this.isElectron) {
+        // Prefer .als if found during import, otherwise open folder
+        const target = p.alsPath || p.rootFolder;
+        window.electron.openProject(target);
+    } else {
+        alert("Would open: " + p.name);
+    }
+};
+
+// Start
 App.init();
