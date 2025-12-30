@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ableton Virtual Manager</title>
+    <!-- Tailwind CSS (via CDN for standalone functionality) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body class="h-screen flex text-sm">
+
+    <!-- LEFT SIDEBAR: Virtual Structure -->
+    <aside class="w-64 bg-[#1a1a1a] flex flex-col border-r border-[#333]">
+        <div class="p-4 border-b border-[#333] flex items-center justify-between">
+            <h1 class="font-bold text-gray-100 tracking-wide">AVM CORE</h1>
+            <button id="importBtn" class="text-xs bg-[#333] hover:bg-[#444] px-2 py-1 rounded text-white transition">
+                + Import
+            </button>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-2">
+            <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Virtual Folders</div>
+            <ul id="virtualFolderList">
+                <!-- Injected via JS -->
+            </ul>
+
+            <div class="px-4 py-2 mt-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tags</div>
+            <ul id="tagList" class="px-2">
+                <!-- Injected via JS -->
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-[#333] text-xs text-gray-500">
+            v1.0.0 &bull; Electron
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT: Project Grid -->
+    <main class="flex-1 flex flex-col bg-[#121212]">
+        <!-- Top Bar -->
+        <header class="h-14 border-b border-[#333] flex items-center justify-between px-6 bg-[#1a1a1a]">
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-400">Viewing:</span>
+                <span id="currentViewTitle" class="font-bold text-white text-lg">All Projects</span>
+            </div>
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Search projects..." 
+                       class="bg-[#2a2a2a] border border-[#333] rounded px-3 py-1 text-gray-300 focus:outline-none focus:border-[#f59e0b] w-64">
+            </div>
+        </header>
+
+        <!-- Grid Area -->
+        <div id="projectGrid" class="flex-1 overflow-y-auto p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start">
+            <!-- Project Cards Injected Here -->
+        </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR: Inspector -->
+    <aside class="w-80 bg-[#1a1a1a] border-l border-[#333] flex flex-col transform transition-transform duration-200 ease-in-out" id="inspectorPanel">
+        <div class="h-full flex flex-col" id="inspectorContent" style="display:none;">
+            <!-- Header -->
+            <div class="p-6 border-b border-[#333]">
+                <div class="w-full h-32 bg-gradient-to-br from-gray-700 to-gray-800 rounded mb-4 flex items-center justify-center border border-[#444] relative group cursor-pointer" id="projectPreview">
+                    <span class="text-4xl">🎵</span>
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                        <span class="text-white font-bold">Open in Ableton</span>
+                    </div>
+                </div>
+                <h2 id="inspectorName" class="text-xl font-bold text-white truncate mb-1">Select a Project</h2>
+                <div class="text-xs text-gray-500 break-all font-mono" id="inspectorPath">D:/...</div>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                
+                <!-- Status -->
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase block mb-2">Status</label>
+                    <select id="statusSelect" class="w-full bg-[#2a2a2a] border border-[#333] rounded px-2 py-1 text-gray-300 focus:border-[#f59e0b] outline-none">
+                        <option value="Idea">Idea</option>
+                        <option value="Incomplete">Incomplete</option>
+                        <option value="Mixing">Mixing</option>
+                        <option value="Mastering">Mastering</option>
+                        <option value="Released">Released</option>
+                    </select>
+                </div>
+
+                <!-- Tasks -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-gray-500 uppercase">Tasks</label>
+                        <button id="addTaskBtn" class="text-xs text-[#f59e0b] hover:text-white">+ Add</button>
+                    </div>
+                    <ul id="taskList" class="space-y-2">
+                        <!-- Tasks Injected Here -->
+                    </ul>
+                </div>
+
+                <!-- Tags -->
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase block mb-2">Tags</label>
+                    <div class="flex flex-wrap gap-2" id="inspectorTags">
+                        <!-- Tags Injected Here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="p-4 border-t border-[#333] grid grid-cols-2 gap-2">
+                <button id="revealBtn" class="bg-[#2a2a2a] hover:bg-[#333] text-gray-300 py-2 rounded text-xs font-medium border border-[#444]">
+                    Show on Disk
+                </button>
+                <button id="renameBtn" class="bg-[#2a2a2a] hover:bg-[#333] text-gray-300 py-2 rounded text-xs font-medium border border-[#444]">
+                    Safe Rename
+                </button>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="inspectorEmpty" class="h-full flex flex-col items-center justify-center text-gray-500 p-6 text-center">
+            <svg class="w-12 h-12 mb-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            <p>Select a project to view details and tasks.</p>
+        </div>
+    </aside>
+
+    <!-- App Logic -->
+    <script src="js/renderer.js"></script>
+</body>
+</html>
