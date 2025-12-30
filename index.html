@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ableton Project Manager</title>
-    <!-- Tailwind for layout utility -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Custom Styles for the Card List look -->
     <link rel="stylesheet" href="styles/style.css">
-    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="h-screen flex text-sm bg-[#121212] text-gray-200 overflow-hidden font-sans">
@@ -17,13 +14,13 @@
     <aside class="w-64 bg-[#1a1a1a] flex flex-col border-r border-[#333]">
         <div class="p-5 border-b border-[#333] flex items-center justify-between">
             <h1 class="font-bold text-gray-100 tracking-wider text-base">AVM <span class="text-[#f59e0b]">CORE</span></h1>
-            <button id="importBtn" class="text-xs bg-[#2a2a2a] hover:bg-[#333] text-white px-2 py-1 rounded border border-[#444] transition-colors">
+            <button id="importBtn" class="text-xs bg-[#2a2a2a] hover:bg-[#333] text-white px-2 py-1 rounded border border-[#444] transition-colors" title="Import Folder">
                 <i class="fa-solid fa-plus"></i>
             </button>
         </div>
 
         <nav class="flex-1 overflow-y-auto py-4 space-y-6">
-            <!-- Virtual Folders -->
+            <!-- Library -->
             <div>
                 <div class="px-5 mb-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Library</div>
                 <ul id="virtualFolderList" class="space-y-0.5">
@@ -31,7 +28,18 @@
                 </ul>
             </div>
 
-            <!-- Tags Filter -->
+            <!-- Virtual Collections -->
+            <div>
+                <div class="px-5 mb-2 flex items-center justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <span>Collections</span>
+                    <button id="createColBtn" class="hover:text-white"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <ul id="collectionList" class="space-y-0.5">
+                    <!-- Injected by JS -->
+                </ul>
+            </div>
+
+            <!-- Tags -->
             <div>
                 <div class="px-5 mb-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Tags</div>
                 <ul id="tagList" class="px-5 flex flex-wrap gap-2">
@@ -40,24 +48,21 @@
             </div>
         </nav>
 
-        <!-- Debug / Version Footer -->
         <div class="p-4 border-t border-[#333] text-xs text-gray-600 flex justify-between items-center">
             <span id="electronStatus" class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-red-500"></span> Browser Mode
             </span>
-            <span>v2.1</span>
+            <span>v2.2</span>
         </div>
     </aside>
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col relative">
-        <!-- Header -->
         <header class="h-16 border-b border-[#333] flex items-center justify-between px-6 bg-[#1a1a1a] shrink-0 z-10">
             <div>
                 <h2 id="currentViewTitle" class="text-lg font-bold text-white">All Projects</h2>
                 <div class="text-xs text-gray-500" id="projectCount">0 projects</div>
             </div>
-            
             <div class="flex items-center gap-3">
                 <div class="relative">
                     <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
@@ -67,24 +72,20 @@
             </div>
         </header>
 
-        <!-- Project List (Scrollable) -->
         <div id="projectListContainer" class="flex-1 overflow-y-auto p-4 space-y-2">
             <!-- Cards Injected Here -->
         </div>
     </main>
 
-    <!-- RIGHT INSPECTOR (Collapsible/Fixed) -->
+    <!-- INSPECTOR -->
     <aside id="inspectorPanel" class="w-80 bg-[#1a1a1a] border-l border-[#333] flex flex-col transform translate-x-full transition-transform duration-300 absolute right-0 top-0 bottom-0 z-20 shadow-2xl">
         
-        <!-- Empty State -->
         <div id="inspectorEmpty" class="h-full flex flex-col items-center justify-center text-gray-600 p-8 text-center">
             <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-30"></i>
-            <p>Select a project to view details</p>
+            <p>Select a project</p>
         </div>
 
-        <!-- Content State -->
         <div id="inspectorContent" class="h-full flex-col hidden">
-            <!-- Cover / Header -->
             <div class="p-6 border-b border-[#333] bg-[#222]">
                 <div class="flex justify-between items-start mb-4">
                     <div class="w-16 h-16 bg-gradient-to-br from-gray-700 to-gray-900 rounded-lg flex items-center justify-center text-2xl shadow-lg">
@@ -92,13 +93,11 @@
                     </div>
                     <button id="closeInspectorBtn" class="text-gray-500 hover:text-white"><i class="fa-solid fa-times"></i></button>
                 </div>
-                
                 <h2 id="inspectorName" class="text-xl font-bold text-white leading-tight mb-1 break-words">Project Name</h2>
-                <div class="text-xs text-gray-500 font-mono truncate" id="inspectorPath">D:/Music...</div>
+                <div class="text-xs text-gray-500 font-mono truncate" id="inspectorPath">D:/...</div>
             </div>
 
-            <!-- Scrollable Details -->
-            <div class="flex-1 overflow-y-auto p-6 space-y-8">
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
                 
                 <!-- Status & Priority -->
                 <div class="grid grid-cols-2 gap-4">
@@ -120,14 +119,20 @@
                     </div>
                 </div>
 
+                <!-- Collections -->
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Add to Collections</label>
+                    <div id="inspectorCollections" class="space-y-1 bg-[#222] p-2 rounded border border-[#333] max-h-32 overflow-y-auto">
+                        <!-- Checkboxes Injected Here -->
+                    </div>
+                </div>
+
                 <!-- Tags -->
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Tags</label>
                     </div>
-                    <div class="flex flex-wrap gap-2 mb-2" id="inspectorTags">
-                        <!-- Tags Here -->
-                    </div>
+                    <div class="flex flex-wrap gap-2 mb-2" id="inspectorTags"></div>
                     <form id="addTagForm" class="flex gap-2">
                         <input type="text" id="newTagInput" placeholder="Add tag..." class="flex-1 bg-[#252525] border border-[#333] rounded px-2 py-1 text-xs focus:border-[#f59e0b] outline-none">
                         <button type="submit" class="bg-[#333] hover:bg-[#444] text-white px-3 py-1 rounded text-xs"><i class="fa-solid fa-plus"></i></button>
@@ -139,16 +144,13 @@
                     <div class="flex justify-between items-center mb-2">
                         <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Notes & Tasks</label>
                     </div>
-                    <ul id="taskList" class="space-y-2 mb-3">
-                        <!-- Tasks -->
-                    </ul>
+                    <ul id="taskList" class="space-y-2 mb-3"></ul>
                     <button id="addTaskBtn" class="text-xs text-[#f59e0b] hover:text-amber-400 flex items-center gap-1">
                         <i class="fa-solid fa-plus"></i> Add Task
                     </button>
                 </div>
             </div>
 
-            <!-- Actions Footer -->
             <div class="p-4 border-t border-[#333] bg-[#222] grid grid-cols-2 gap-3">
                 <button id="revealBtn" class="col-span-1 bg-[#2a2a2a] hover:bg-[#333] text-gray-300 py-2 rounded text-xs font-medium border border-[#444] transition-all">
                     Show Folder
