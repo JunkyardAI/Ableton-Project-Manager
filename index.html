@@ -3,129 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ableton Virtual Manager</title>
-    <!-- Tailwind CSS (via CDN for standalone functionality) -->
+    <title>Ableton Project Manager</title>
+    <!-- Tailwind for layout utility -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Custom Styles -->
+    <!-- Custom Styles for the Card List look -->
     <link rel="stylesheet" href="styles/style.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="h-screen flex text-sm">
+<body class="h-screen flex text-sm bg-[#121212] text-gray-200 overflow-hidden font-sans">
 
-    <!-- LEFT SIDEBAR: Virtual Structure -->
+    <!-- SIDEBAR -->
     <aside class="w-64 bg-[#1a1a1a] flex flex-col border-r border-[#333]">
-        <div class="p-4 border-b border-[#333] flex items-center justify-between">
-            <h1 class="font-bold text-gray-100 tracking-wide">AVM CORE</h1>
-            <button id="importBtn" class="text-xs bg-[#333] hover:bg-[#444] px-2 py-1 rounded text-white transition">
-                + Import
+        <div class="p-5 border-b border-[#333] flex items-center justify-between">
+            <h1 class="font-bold text-gray-100 tracking-wider text-base">AVM <span class="text-[#f59e0b]">CORE</span></h1>
+            <button id="importBtn" class="text-xs bg-[#2a2a2a] hover:bg-[#333] text-white px-2 py-1 rounded border border-[#444] transition-colors">
+                <i class="fa-solid fa-plus"></i>
             </button>
         </div>
 
-        <nav class="flex-1 overflow-y-auto py-2">
-            <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Virtual Folders</div>
-            <ul id="virtualFolderList">
-                <!-- Injected via JS -->
-            </ul>
+        <nav class="flex-1 overflow-y-auto py-4 space-y-6">
+            <!-- Virtual Folders -->
+            <div>
+                <div class="px-5 mb-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Library</div>
+                <ul id="virtualFolderList" class="space-y-0.5">
+                    <!-- Injected by JS -->
+                </ul>
+            </div>
 
-            <div class="px-4 py-2 mt-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tags</div>
-            <ul id="tagList" class="px-2">
-                <!-- Injected via JS -->
-            </ul>
+            <!-- Tags Filter -->
+            <div>
+                <div class="px-5 mb-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Tags</div>
+                <ul id="tagList" class="px-5 flex flex-wrap gap-2">
+                    <!-- Injected by JS -->
+                </ul>
+            </div>
         </nav>
 
-        <div class="p-4 border-t border-[#333] text-xs text-gray-500">
-            v1.0.0 &bull; Electron
+        <!-- Debug / Version Footer -->
+        <div class="p-4 border-t border-[#333] text-xs text-gray-600 flex justify-between items-center">
+            <span id="electronStatus" class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-red-500"></span> Browser Mode
+            </span>
+            <span>v2.1</span>
         </div>
     </aside>
 
-    <!-- MAIN CONTENT: Project Grid -->
-    <main class="flex-1 flex flex-col bg-[#121212]">
-        <!-- Top Bar -->
-        <header class="h-14 border-b border-[#333] flex items-center justify-between px-6 bg-[#1a1a1a]">
-            <div class="flex items-center space-x-2">
-                <span class="text-gray-400">Viewing:</span>
-                <span id="currentViewTitle" class="font-bold text-white text-lg">All Projects</span>
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col relative">
+        <!-- Header -->
+        <header class="h-16 border-b border-[#333] flex items-center justify-between px-6 bg-[#1a1a1a] shrink-0 z-10">
+            <div>
+                <h2 id="currentViewTitle" class="text-lg font-bold text-white">All Projects</h2>
+                <div class="text-xs text-gray-500" id="projectCount">0 projects</div>
             </div>
-            <div class="relative">
-                <input type="text" id="searchInput" placeholder="Search projects..." 
-                       class="bg-[#2a2a2a] border border-[#333] rounded px-3 py-1 text-gray-300 focus:outline-none focus:border-[#f59e0b] w-64">
+            
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="text" id="searchInput" placeholder="Search..." 
+                           class="bg-[#252525] border border-[#333] rounded-full pl-9 pr-4 py-1.5 text-gray-300 focus:outline-none focus:border-[#f59e0b] w-64 text-sm transition-all focus:w-80">
+                </div>
             </div>
         </header>
 
-        <!-- Grid Area -->
-        <div id="projectGrid" class="flex-1 overflow-y-auto p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start">
-            <!-- Project Cards Injected Here -->
+        <!-- Project List (Scrollable) -->
+        <div id="projectListContainer" class="flex-1 overflow-y-auto p-4 space-y-2">
+            <!-- Cards Injected Here -->
         </div>
     </main>
 
-    <!-- RIGHT SIDEBAR: Inspector -->
-    <aside class="w-80 bg-[#1a1a1a] border-l border-[#333] flex flex-col transform transition-transform duration-200 ease-in-out" id="inspectorPanel">
-        <div class="h-full flex flex-col" id="inspectorContent" style="display:none;">
-            <!-- Header -->
-            <div class="p-6 border-b border-[#333]">
-                <div class="w-full h-32 bg-gradient-to-br from-gray-700 to-gray-800 rounded mb-4 flex items-center justify-center border border-[#444] relative group cursor-pointer" id="projectPreview">
-                    <span class="text-4xl">🎵</span>
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                        <span class="text-white font-bold">Open in Ableton</span>
+    <!-- RIGHT INSPECTOR (Collapsible/Fixed) -->
+    <aside id="inspectorPanel" class="w-80 bg-[#1a1a1a] border-l border-[#333] flex flex-col transform translate-x-full transition-transform duration-300 absolute right-0 top-0 bottom-0 z-20 shadow-2xl">
+        
+        <!-- Empty State -->
+        <div id="inspectorEmpty" class="h-full flex flex-col items-center justify-center text-gray-600 p-8 text-center">
+            <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-30"></i>
+            <p>Select a project to view details</p>
+        </div>
+
+        <!-- Content State -->
+        <div id="inspectorContent" class="h-full flex-col hidden">
+            <!-- Cover / Header -->
+            <div class="p-6 border-b border-[#333] bg-[#222]">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="w-16 h-16 bg-gradient-to-br from-gray-700 to-gray-900 rounded-lg flex items-center justify-center text-2xl shadow-lg">
+                        🎵
                     </div>
+                    <button id="closeInspectorBtn" class="text-gray-500 hover:text-white"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <h2 id="inspectorName" class="text-xl font-bold text-white truncate mb-1">Select a Project</h2>
-                <div class="text-xs text-gray-500 break-all font-mono" id="inspectorPath">D:/...</div>
+                
+                <h2 id="inspectorName" class="text-xl font-bold text-white leading-tight mb-1 break-words">Project Name</h2>
+                <div class="text-xs text-gray-500 font-mono truncate" id="inspectorPath">D:/Music...</div>
             </div>
 
-            <!-- Scrollable Content -->
-            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- Scrollable Details -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-8">
                 
-                <!-- Status -->
+                <!-- Status & Priority -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Status</label>
+                        <select id="statusSelect" class="w-full bg-[#2a2a2a] border border-[#333] rounded px-2 py-1.5 text-gray-300 text-xs focus:border-[#f59e0b] outline-none">
+                            <option value="Idea">Idea</option>
+                            <option value="Incomplete">Incomplete</option>
+                            <option value="Mixing">Mixing</option>
+                            <option value="Mastering">Mastering</option>
+                            <option value="Released">Released</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Priority</label>
+                        <button id="priorityToggleBtn" class="w-full flex items-center justify-center gap-2 bg-[#2a2a2a] border border-[#333] rounded px-2 py-1.5 text-xs text-gray-400 hover:text-white hover:border-gray-500 transition-colors">
+                            <i class="fa-regular fa-star"></i> <span>Normal</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tags -->
                 <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase block mb-2">Status</label>
-                    <select id="statusSelect" class="w-full bg-[#2a2a2a] border border-[#333] rounded px-2 py-1 text-gray-300 focus:border-[#f59e0b] outline-none">
-                        <option value="Idea">Idea</option>
-                        <option value="Incomplete">Incomplete</option>
-                        <option value="Mixing">Mixing</option>
-                        <option value="Mastering">Mastering</option>
-                        <option value="Released">Released</option>
-                    </select>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Tags</label>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-2" id="inspectorTags">
+                        <!-- Tags Here -->
+                    </div>
+                    <form id="addTagForm" class="flex gap-2">
+                        <input type="text" id="newTagInput" placeholder="Add tag..." class="flex-1 bg-[#252525] border border-[#333] rounded px-2 py-1 text-xs focus:border-[#f59e0b] outline-none">
+                        <button type="submit" class="bg-[#333] hover:bg-[#444] text-white px-3 py-1 rounded text-xs"><i class="fa-solid fa-plus"></i></button>
+                    </form>
                 </div>
 
                 <!-- Tasks -->
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-gray-500 uppercase">Tasks</label>
-                        <button id="addTaskBtn" class="text-xs text-[#f59e0b] hover:text-white">+ Add</button>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Notes & Tasks</label>
                     </div>
-                    <ul id="taskList" class="space-y-2">
-                        <!-- Tasks Injected Here -->
+                    <ul id="taskList" class="space-y-2 mb-3">
+                        <!-- Tasks -->
                     </ul>
-                </div>
-
-                <!-- Tags -->
-                <div>
-                    <label class="text-xs font-bold text-gray-500 uppercase block mb-2">Tags</label>
-                    <div class="flex flex-wrap gap-2" id="inspectorTags">
-                        <!-- Tags Injected Here -->
-                    </div>
+                    <button id="addTaskBtn" class="text-xs text-[#f59e0b] hover:text-amber-400 flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> Add Task
+                    </button>
                 </div>
             </div>
 
             <!-- Actions Footer -->
-            <div class="p-4 border-t border-[#333] grid grid-cols-2 gap-2">
-                <button id="revealBtn" class="bg-[#2a2a2a] hover:bg-[#333] text-gray-300 py-2 rounded text-xs font-medium border border-[#444]">
-                    Show on Disk
+            <div class="p-4 border-t border-[#333] bg-[#222] grid grid-cols-2 gap-3">
+                <button id="revealBtn" class="col-span-1 bg-[#2a2a2a] hover:bg-[#333] text-gray-300 py-2 rounded text-xs font-medium border border-[#444] transition-all">
+                    Show Folder
                 </button>
-                <button id="renameBtn" class="bg-[#2a2a2a] hover:bg-[#333] text-gray-300 py-2 rounded text-xs font-medium border border-[#444]">
-                    Safe Rename
+                <button id="renameBtn" class="col-span-1 bg-[#2a2a2a] hover:bg-[#333] text-gray-300 py-2 rounded text-xs font-medium border border-[#444] transition-all">
+                    Rename
+                </button>
+                <button id="openAbletonBtn" class="col-span-2 bg-gradient-to-r from-[#f59e0b] to-[#d97706] hover:from-[#fbbf24] hover:to-[#f59e0b] text-black font-bold py-2.5 rounded text-xs shadow-lg transform active:scale-95 transition-all">
+                    Open Project
                 </button>
             </div>
         </div>
-
-        <!-- Empty State -->
-        <div id="inspectorEmpty" class="h-full flex flex-col items-center justify-center text-gray-500 p-6 text-center">
-            <svg class="w-12 h-12 mb-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            <p>Select a project to view details and tasks.</p>
-        </div>
     </aside>
 
-    <!-- App Logic -->
     <script src="js/renderer.js"></script>
 </body>
 </html>
